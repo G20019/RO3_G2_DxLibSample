@@ -61,8 +61,11 @@ VOID FPSUpdate(void)
 /// </summary>
 VOID FPSDraw(VOID)
 {
-	// •¶Žš—ñ‚ð•`‰æ
-	DrawFormatString(0, 20, GetColor(0, 0, 0), "FPS:%.1f", fps.DrawValue);
+	if (GAME_DEBUG == TRUE)
+	{
+		// •¶Žš—ñ‚ð•`‰æ
+		DrawFormatString(0, GAME_HEIGHT - 20, GetColor(0, 0, 0), "FPS:%.1f", fps.DrawValue);
+	}
 
 	return;
 }
