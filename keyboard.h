@@ -7,6 +7,7 @@
 
 //マクロ定義
 #define KEY_KIND_MAX 256	//取得するキーの種類
+#define MARGIN 50			//画面端の余白
 
 //キーボード構造体
 struct KEYBOARD

@@ -1,6 +1,7 @@
 // ヘッダーファイルの読み込み
 #include "DxLib.h"		// DxLibを使うときは必要
 #include "keyboard.h"	// キーボードの処理
+#include "FPS.h"		// FPSの処理
 
 // マクロ定義
 #define GAME_TITLE	"ゲームタイトル"	// ゲームタイトル
@@ -27,7 +28,7 @@ GAME_SCENE GameScene;		// 現在のゲームのシーン
 GAME_SCENE OldGameScene;	// 前回のゲームのシーン
 GAME_SCENE NextGameScene;	// 次のゲームのシーン
 
-// 画面の切り替え
+// 画面の切り替えad
 BOOL IsFadeOut = FALSE;	// フェードアウト
 BOOL IsFadeIn = FALSE;	// フェードイン
 
@@ -105,6 +106,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 		// キーボード入力の更新
 		AllKeyUpdate();
 
+		// FPS値の更新
+		FPSUpdate();
+
 		// ESCキーで強制終了
 		if (KeyClick(KEY_INPUT_ESCAPE) == TRUE) { break; }
 
@@ -144,6 +148,24 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 			}
 		}
 
+		if (X > GAME_WIDTH - MARGIN)
+		{
+			X = GAME_WIDTH - MARGIN;
+		}
+		else if (X < MARGIN)
+		{
+			X = MARGIN;
+		}
+
+		if (Y > GAME_HEIGHT - MARGIN)
+		{
+			Y = GAME_HEIGHT - MARGIN;
+		}
+		else if (Y < MARGIN)
+		{
+			Y = MARGIN;
+		}
+
 		// キー入力
 		if (KeyDown(KEY_INPUT_W) == TRUE)
 		{
@@ -166,6 +188,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 		}
 		
 		DrawCircle(X, Y, radius, GetColor(255, 0, 0), TRUE);
+
+		// FPS値を描画
+		FPSDraw();
+
+		// FPS値を待つ
+		FPSWait();
 
 		ScreenFlip();		// ダブルバッファリングした画面を描画
 	}
