@@ -71,8 +71,10 @@ VOID ChangeDraw(VOID);	// 切り替え画面（描画）
 
 VOID ChangeScene(GAME_SCENE scene);	// シーン切り替え
 
-VOID CollUpdatePlayer(CHARACTOR* chara);	// 当たり判定の領域更新
-VOID CollUpdate(CHARACTOR* chara);			// 当たり判定
+VOID CollUpdatePlayer(CHARACTOR* chara);	// プレイヤーの当たり判定の領域更新
+VOID CollUpdate(CHARACTOR* chara);			// 当たり判定の領域更新
+
+BOOL OnCollRect(RECT object1, RECT object2); // 矩形と矩形の当たり判定
 
 // プログラムは WinMain から始まる
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
@@ -85,7 +87,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	SetBackgroundColor(255, 255, 255);					// デフォルトの背景の色
 	SetWindowIconID(GAME_ICON_ID);						// アイコンファイルを読み込み
 	SetWindowStyleMode(GAME_WINDOW_BAR);				// ウィンドウバーの状態
-	SetWaitVSyncFlag(TRUE);								// ディスプレイの垂直同期を有効にする
+	SetWaitVSyncFlag(FALSE);								// ディスプレイの垂直同期を有効にする
 	SetAlwaysRunFlag(TRUE);								// ウィンドウをずっとアクティブにする
 
 	if (DxLib_Init() == -1)	// ＤＸライブラリ初期化処理
@@ -122,14 +124,17 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	// 画像の幅と高さを取得
 	GetGraphSize(player.handle, &player.width, &player.height);
 
-	// 当たり判定を更新する
-	CollUpdatePlayer(&player);	// プレイヤーの当たり判定のアドレス
+	//// 当たり判定を更新する
+	//CollUpdatePlayer(&player);	// プレイヤーの当たり判定のアドレス
 
 	// プレイヤーを初期化
 	player.x = GAME_WIDTH / 2 - player.width / 2;	// 中央寄せ
 	player.y = GAME_HEIGHT / 2 - player.height / 2;	// 中央寄せ
 	player.speed = 500;
 	player.IsDraw = TRUE;	// 描画できる
+
+	// 当たり判定を更新する
+	CollUpdatePlayer(&player);	// プレイヤーの当たり判定のアドレス
 
 	// ゴールの画像を読み込み
 	strcpyDx(goal.path, ".\\images\\goal.png");	// パスのコピー
@@ -152,14 +157,17 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	// 画像の幅と高さを取得
 	GetGraphSize(goal.handle, &goal.width, &goal.height);
 
-	// 当たり判定を更新する
-	CollUpdate(&goal);	// プレイヤーの当たり判定のアドレス
+	//// 当たり判定を更新する
+	//CollUpdate(&goal);	// ゴールの当たり判定のアドレス
 
 	// ゴールを初期化
 	goal.x = GAME_WIDTH - goal.width;
 	goal.y = 0;
 	goal.speed = 500;	// スピード
 	goal.IsDraw = TRUE;	// 描画できる
+
+	// 当たり判定を更新する
+	CollUpdate(&goal);	// ゴールの当たり判定のアドレス
 
 	// 無限ループ
 	while (1) 
@@ -325,9 +333,21 @@ VOID PlayProc(VOID)
 		player.x += player.speed * fps.DeltaTime;
 	}
 
-
-	// 当たり判定を更新する
+	// プレイヤーの当たり判定を更新する
 	CollUpdatePlayer(&player);
+
+	// ゴールの当たり判定を更新する
+	CollUpdate(&goal);
+
+	// プレイヤーがゴールに当たった時
+	if (OnCollRect(player.coll, goal.coll) == true)
+	{
+		// エンド画面に切り替え
+		ChangeScene(GAME_SCENE_END);
+		
+		// 処理を強制終了
+		return;
+	}
 
 	return;
 }
@@ -337,7 +357,6 @@ VOID PlayProc(VOID)
 /// </summary>
 VOID PlayDraw(VOID)
 {
-
 	// ゴールを描画
 	if (goal.IsDraw == TRUE)
 	{
@@ -388,14 +407,14 @@ VOID End(VOID)
 /// </summary>
 VOID EndProc(VOID)
 {
-	if (KeyClick(KEY_INPUT_RETURN) == TRUE)
-	{
-		// シーン切り替え
-		// 次のシーンの初期化をここで行うと楽
+	//if (KeyClick(KEY_INPUT_RETURN) == TRUE)
+	//{
+	//	// シーン切り替え
+	//	// 次のシーンの初期化をここで行うと楽
 
-		// タイトル画面に切り替え
-		ChangeScene(GAME_SCENE_TITLE);
-	}
+	//	// タイトル画面に切り替え
+	//	ChangeScene(GAME_SCENE_TITLE);
+	//}
 
 	return;
 }
@@ -536,4 +555,27 @@ VOID CollUpdate(CHARACTOR* chara)
 	chara->coll.bottom = chara->y + chara->height;
 
 	return;
+}
+
+/// <summary>
+/// 矩形と矩形の当たり判定
+/// </summary>
+/// <param name="object1">矩形１</param>
+/// <param name="object2">矩形２</param>
+/// <returns>当たった時true/当たっていないときfalse</returns>
+BOOL OnCollRect(RECT object1,RECT object2)
+{
+	if (
+		object1.left < object2.right &&		// 矩形Aの左辺X座標 <　矩形Bの右辺X座標　かつ
+		object1.right > object2.left &&		// 矩形Aの右辺X座標 >　矩形Bの左辺X座標　かつ
+		object1.top < object2.bottom &&		// 矩形Aの上辺Y座標 <　矩形B下辺Y座標　かつ
+		object1.bottom > object2.top		// 矩形Aの下辺Y座標 >　矩形Bの上辺Y座標
+		)
+	{
+		// 当たっているとき
+		return TRUE;
+	}
+
+	// 当たっていないとき
+	return FALSE;
 }

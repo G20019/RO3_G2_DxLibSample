@@ -44,7 +44,7 @@ VOID FPSUpdate(void)
 		// 現在の時刻から、0フレーム目の時間を引き、FPSの数値で割る
 		// 現在の平均FPS値が出る
 		fps.DrawValue = 1000000.f / ((fps.NowTime - fps.StartTime) / (float)fps.SampleRate);
-
+		
 		// 測定開始時刻をマイクロ秒単位で取得
 		fps.StartTime = GetNowHiPerformanceCount();	// Windowsが起動してから経過した時間（マイクロ秒）
 
@@ -75,7 +75,7 @@ VOID FPSDraw(VOID)
 VOID FPSWait(VOID)
 {
 	// 現在の時刻-最初の時刻で、現在のかかっている時刻を取得する
-	LONGLONG resultTime = fps.NowTime; fps.StartTime;
+	LONGLONG resultTime = fps.NowTime - fps.StartTime;
 
 	// 待つべきミリ秒数（1秒 / FPS値 * 現在のフレーム数）から、現在かかっている時刻を引く
 	int waitTime = 1000000.0f / fps.Value * fps.Count - resultTime;
