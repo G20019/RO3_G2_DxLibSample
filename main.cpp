@@ -93,6 +93,10 @@ VOID CollUpdate(CHARACTOR* chara);			// 当たり判定の領域更新
 
 BOOL OnCollRect(RECT object1, RECT object2); // 矩形と矩形の当たり判定
 
+BOOL GameLoad(VOID);	// ゲームのデータを読み込み
+
+VOID GameInit(VOID);
+
 // プログラムは WinMain から始まる
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
@@ -104,7 +108,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	SetBackgroundColor(255, 255, 255);					// デフォルトの背景の色
 	SetWindowIconID(GAME_ICON_ID);						// アイコンファイルを読み込み
 	SetWindowStyleMode(GAME_WINDOW_BAR);				// ウィンドウバーの状態
-	SetWaitVSyncFlag(FALSE);								// ディスプレイの垂直同期を有効にする
+	SetWaitVSyncFlag(FALSE);							// ディスプレイの垂直同期を有効にする
 	SetAlwaysRunFlag(TRUE);								// ウィンドウをずっとアクティブにする
 
 	if (DxLib_Init() == -1)	// ＤＸライブラリ初期化処理
@@ -120,96 +124,17 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
 	// ゲーム全体の初期化
 
-	// 動画の背景を読み込み
-	strcpyDx(playMovie.path, ".\\Movie\\PlayMovie.mp4");	// パスのコピー
-	playMovie.handle = LoadGraph(playMovie.path);			// 動画の読み込み
-
-	// 動画が読み込めなかったときは、エラー（－1）が入る
-	if (playMovie.handle == -1)
+	// ゲーム読み込み
+	if (!GameLoad())
 	{
-		MessageBox(
-			GetMainWindowHandle(),	// メインのウィンドウハンドル
-			playMovie.path,			// メッセージ本文
-			"動画読み込みエラー",	// メッセージタイトル
-			MB_OK					// ボタン
-		);
-
-		DxLib_End();	// 強制終了
-		return -1;		// エラー終了
+		// ゲームの読み込みに失敗したとき
+		DxLib_End();	// DxLib終了
+		return -1;		// 異常終了
 	}
 
-	// 画像の幅と高さを取得
-	GetGraphSize(player.handle, &player.width, &player.height);
-
-	// プレイヤーの画像を読み込み
-	strcpyDx(player.path, ".\\images\\player.png");			// パスのコピー
-	player.handle = LoadGraph(player.path);					// 画像の読み込み
-
-	// 画像が読み込めなかったときは、エラー（－1）が入る
-	if (player.handle == -1)
-	{
-		MessageBox(
-			GetMainWindowHandle(),	// メインのウィンドウハンドル
-			player.path,			// メッセージ本文
-			"画像読み込みエラー",	// メッセージタイトル
-			MB_OK					// ボタン
-		);
-
-		DxLib_End();	// 強制終了
-		return -1;		// エラー終了
-	}
-
-	// 画像の幅と高さを取得
-	GetGraphSize(playMovie.handle, &playMovie.width, &playMovie.height);
-
-	// 動画のボリューム
-	playMovie.volume = 255;
-
-	//// 当たり判定を更新する
-	//CollUpdatePlayer(&player);	// プレイヤーの当たり判定のアドレス
-
-	// プレイヤーを初期化
-	player.x = GAME_WIDTH / 2 - player.width / 2;	// 中央寄せ
-	player.y = GAME_HEIGHT / 2 - player.height / 2;	// 中央寄せ
-	player.speed = 500;
-	player.IsDraw = TRUE;	// 描画できる
-
-	// 当たり判定を更新する
-	CollUpdatePlayer(&player);	// プレイヤーの当たり判定のアドレス
-
-	// ゴールの画像を読み込み
-	strcpyDx(goal.path, ".\\images\\goal.png");	// パスのコピー
-	goal.handle = LoadGraph(goal.path);	// 画像の読み込み
-
-	// 画像が読み込めなかったときは、エラー（－1）が入る
-	if (goal.handle == -1)
-	{
-		MessageBox(
-			GetMainWindowHandle(),	// メインのウィンドウハンドル
-			goal.path,			// メッセージ本文
-			"画像読み込みエラー",	// メッセージタイトル
-			MB_OK					// ボタン
-		);
-
-		DxLib_End();	// 強制終了
-		return -1;		// エラー終了
-	}
-
-	// 画像の幅と高さを取得
-	GetGraphSize(goal.handle, &goal.width, &goal.height);
-
-	//// 当たり判定を更新する
-	//CollUpdate(&goal);	// ゴールの当たり判定のアドレス
-
-	// ゴールを初期化
-	goal.x = GAME_WIDTH - goal.width;
-	goal.y = 0;
-	goal.speed = 500;	// スピード
-	goal.IsDraw = TRUE;	// 描画できる
-
-	// 当たり判定を更新する
-	CollUpdate(&goal);	// ゴールの当たり判定のアドレス
-
+	// ゲームの初期化
+	GameInit();
+	
 	// 無限ループ
 	while (1) 
 	{
@@ -283,6 +208,108 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 }
 
 /// <summary>
+/// ゲームデータの読み込み
+/// </summary>
+/// <returns>読み込めたらTRUE / 読み込めなかったらFALSE</returns>
+BOOL GameLoad(VOID) {
+	// 動画の背景を読み込み
+	strcpyDx(playMovie.path, ".\\Movie\\PlayMovie.mp4");	// パスのコピー
+	playMovie.handle = LoadGraph(playMovie.path);			// 動画の読み込み
+
+	// 動画が読み込めなかったときは、エラー（－1）が入る
+	if (playMovie.handle == -1)
+	{
+		MessageBox(
+			GetMainWindowHandle(),	// メインのウィンドウハンドル
+			playMovie.path,			// メッセージ本文
+			"動画読み込みエラー",	// メッセージタイトル
+			MB_OK					// ボタン
+		);
+
+		return FALSE;		// 読み込み失敗
+	}
+
+	// 画像の幅と高さを取得
+	GetGraphSize(playMovie.handle, &playMovie.width, &playMovie.height);
+
+	// 動画のボリューム
+	playMovie.volume = 255;
+
+	// プレイヤーの画像を読み込み
+	strcpyDx(player.path, ".\\images\\player.png");			// パスのコピー
+	player.handle = LoadGraph(player.path);					// 画像の読み込み
+
+	// 画像が読み込めなかったときは、エラー（－1）が入る
+	if (player.handle == -1)
+	{
+		MessageBox(
+			GetMainWindowHandle(),	// メインのウィンドウハンドル
+			player.path,			// メッセージ本文
+			"画像読み込みエラー",	// メッセージタイトル
+			MB_OK					// ボタン
+		);
+
+		return FALSE;		// 読み込み失敗
+	}
+
+	// 画像の幅と高さを取得
+	GetGraphSize(player.handle, &player.width, &player.height);
+
+	//// 当たり判定を更新する
+	//CollUpdatePlayer(&player);	// プレイヤーの当たり判定のアドレス
+
+	// ゴールの画像を読み込み
+	strcpyDx(goal.path, ".\\images\\goal.png");	// パスのコピー
+	goal.handle = LoadGraph(goal.path);	// 画像の読み込み
+
+	// 画像が読み込めなかったときは、エラー（－1）が入る
+	if (goal.handle == -1)
+	{
+		MessageBox(
+			GetMainWindowHandle(),	// メインのウィンドウハンドル
+			goal.path,			// メッセージ本文
+			"画像読み込みエラー",	// メッセージタイトル
+			MB_OK					// ボタン
+		);
+
+		return FALSE;		// 読み込み失敗
+	}
+
+	// 画像の幅と高さを取得
+	GetGraphSize(goal.handle, &goal.width, &goal.height);
+
+	//// 当たり判定を更新する
+	//CollUpdate(&goal);	// ゴールの当たり判定のアドレス
+
+	return TRUE;	//すべて読み込めた
+}
+
+/// <summary>
+/// ゲームデータを初期化
+/// </summary>
+/// <param name=""></param>
+VOID GameInit(VOID)
+{
+	// プレイヤーを初期化
+	player.x = GAME_WIDTH / 2 - player.width / 2;	// 中央寄せ
+	player.y = GAME_HEIGHT / 2 - player.height / 2;	// 中央寄せ
+	player.speed = 500;
+	player.IsDraw = TRUE;	// 描画できる
+
+	// 当たり判定を更新する
+	CollUpdatePlayer(&player);	// プレイヤーの当たり判定のアドレス
+
+	// ゴールを初期化
+	goal.x = GAME_WIDTH / 2 - goal.width / 2; //GAME_WIDTH - goal.width;
+	goal.y = 0;
+	goal.speed = 500;	// スピード
+	goal.IsDraw = TRUE;	// 描画できる
+
+	// 当たり判定を更新する
+	CollUpdate(&goal);	// ゴールの当たり判定のアドレス
+}
+
+/// <summary>
 /// シーンを切り替える関数
 /// </summary>
 /// <param name="scene">シーン</param>
@@ -315,6 +342,9 @@ VOID TitleProc(VOID)
 	{
 		// シーン切り替え
 		// 次のシーンの初期化をここで行うと楽
+
+		// ゲームの初期化
+		GameInit();
 
 		// プレイ画面に切り替え
 		ChangeScene(GAME_SCENE_PLAY);
@@ -463,14 +493,14 @@ VOID End(VOID)
 /// </summary>
 VOID EndProc(VOID)
 {
-	//if (KeyClick(KEY_INPUT_RETURN) == TRUE)
-	//{
-	//	// シーン切り替え
-	//	// 次のシーンの初期化をここで行うと楽
+	if (KeyClick(KEY_INPUT_RETURN) == TRUE)
+	{
+		// シーン切り替え
+		// 次のシーンの初期化をここで行うと楽
 
-	//	// タイトル画面に切り替え
-	//	ChangeScene(GAME_SCENE_TITLE);
-	//}
+		// タイトル画面に切り替え
+		ChangeScene(GAME_SCENE_TITLE);
+	}
 
 	return;
 }
@@ -624,7 +654,7 @@ BOOL OnCollRect(RECT object1,RECT object2)
 	if (
 		object1.left < object2.right &&		// 矩形Aの左辺X座標 <　矩形Bの右辺X座標　かつ
 		object1.right > object2.left &&		// 矩形Aの右辺X座標 >　矩形Bの左辺X座標　かつ
-		object1.top < object2.bottom &&		// 矩形Aの上辺Y座標 <　矩形B下辺Y座標　かつ
+		object1.top < object2.bottom &&		// 矩形Aの上辺Y座標 <　矩形Bの下辺Y座標　かつ
 		object1.bottom > object2.top		// 矩形Aの下辺Y座標 >　矩形Bの上辺Y座標
 		)
 	{
