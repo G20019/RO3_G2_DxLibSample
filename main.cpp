@@ -5,8 +5,8 @@
 
 // 構造体の定義
 
-// キャラクタの構造体
-struct CHARACTOR
+// 画像の構造体
+struct IMAGE
 {
 	int handle = -1;	// 画像のハンドル（管理番号）
 	char path[255];		// 画像の場所（パス）
@@ -16,10 +16,15 @@ struct CHARACTOR
 	int width = 0;		// 幅
 	int height = 0;		// 高さ
 
-	int speed = 5;		// 移動速度
-
-	RECT coll;			// 当たり判定の領域（四角）
 	BOOL IsDraw = FALSE;// 画像が描画できる？
+};
+
+// キャラクタの構造体
+struct CHARACTOR
+{
+	IMAGE img;			// 画像構造体
+	int speed = 5;		// 移動速度
+	RECT coll;			// 当たり判定の領域（四角）
 };
 
 // 動画の構造体
@@ -61,6 +66,11 @@ CHARACTOR player;
 // ゴール
 CHARACTOR goal;
 
+// 画像を読み込む
+IMAGE TitleLogo;	// タイトルロゴ
+IMAGE TitleEnter;	// エンターキーを押してね
+IMAGE EndClear;		// クリアロゴ
+
 // 音楽
 AUDIO TitleBGM;
 AUDIO PlayBGM;
@@ -86,6 +96,16 @@ int fadeInCntInit = fadeTimeMax;	// 初期値
 int fadeInCnt = fadeInCntInit;		// フェードインのカウンタ
 int fadeInCntMax = fadeTimeMax;		// フェードインのカウンタMAX
 
+// PushEnterの点滅
+int PushEnterCnt;					// カウンタ
+const int PushEnterCntMax = 120;	// カウンタMAX値
+BOOL PushEnterBrink = FALSE;		// 点滅しているか？
+
+// EndClear
+int EndClearCnt;					//カウンタ
+const int EndClearCntMax = 120;		// カウンタMAX値
+BOOL EndClearBrink = FALSE;			// 点滅しているか？
+
 // プロトタイプ宣言
 VOID Title(VOID);		// タイトル画面
 VOID TitleProc(VOID);	// タイトル画面（処理）
@@ -103,14 +123,16 @@ VOID Change(VOID);		// 切り替え画面
 VOID ChangeProc(VOID);	// 切り替え画面（処理）
 VOID ChangeDraw(VOID);	// 切り替え画面（描画）
 
-VOID ChangeScene(GAME_SCENE scene);	// シーン切り替え
+VOID ChangeScene(GAME_SCENE scene);											// シーン切り替え
 
-VOID CollUpdatePlayer(CHARACTOR* chara);	// プレイヤーの当たり判定の領域更新
-VOID CollUpdate(CHARACTOR* chara);			// 当たり判定の領域更新
+VOID CollUpdatePlayer(CHARACTOR* chara);									// プレイヤーの当たり判定の領域更新
+VOID CollUpdate(CHARACTOR* chara);											// 当たり判定の領域更新
 
-BOOL OnCollRect(RECT object1, RECT object2); // 矩形と矩形の当たり判定
+BOOL OnCollRect(RECT object1, RECT object2);								// 矩形と矩形の当たり判定
 
-BOOL GameLoad(VOID);	// ゲームのデータを読み込み
+BOOL GameLoad(VOID);														// ゲームのデータを読み込み
+
+BOOL LoadImageMem(IMAGE* image, const char* path);							//画像のデータを読み込み
 
 BOOL LoadAudio(AUDIO* audio, const char* path, int volume, int playType);	// 音楽のデータを読み込み
 
@@ -127,7 +149,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	SetBackgroundColor(255, 255, 255);					// デフォルトの背景の色
 	SetWindowIconID(GAME_ICON_ID);						// アイコンファイルを読み込み
 	SetWindowStyleMode(GAME_WINDOW_BAR);				// ウィンドウバーの状態
-	SetWaitVSyncFlag(FALSE);							// ディスプレイの垂直同期を有効にする
+	SetWaitVSyncFlag(TRUE);								// ディスプレイの垂直同期を有効にする
 	SetAlwaysRunFlag(TRUE);								// ウィンドウをずっとアクティブにする
 
 	if (DxLib_Init() == -1)	// ＤＸライブラリ初期化処理
@@ -217,8 +239,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
 	// 終わる時の処理
 	DeleteGraph(playMovie.handle);	// 動画をメモリ上から削除
-	DeleteGraph(player.handle);		// 画像をメモリ上から削除
-	DeleteGraph(goal.handle);		// 画像をメモリ上から削除
+	DeleteGraph(player.img.handle);		// 画像をメモリ上から削除
+	DeleteGraph(goal.img.handle);		// 画像をメモリ上から削除
+
+	DeleteGraph(TitleLogo.handle);		// 画像をメモリ上から削除
+	DeleteGraph(TitleEnter.handle);		// 画像をメモリ上から削除
+	DeleteGraph(EndClear.handle);		// 画像をメモリ上から削除
 
 	DeleteSoundMem(TitleBGM.handle);	// 音楽をメモリ上から削除
 	DeleteSoundMem(PlayBGM.handle);		// 音楽をメモリ上から削除
@@ -260,48 +286,14 @@ BOOL GameLoad(VOID) {
 	// 動画のボリューム
 	playMovie.volume = 255;
 
-	// プレイヤーの画像を読み込み
-	strcpyDx(player.path, ".\\images\\player.png");			// パスのコピー
-	player.handle = LoadGraph(player.path);					// 画像の読み込み
+	// 画像を読み込む
+	if (!LoadImageMem(&player.img, ".\\images\\player.\png")) { return FALSE; }
+	if (!LoadImageMem(&goal.img, ".\\images\\goal.\png")) { return FALSE; }
 
-	// 画像が読み込めなかったときは、エラー（－1）が入る
-	if (player.handle == -1)
-	{
-		MessageBox(
-			GetMainWindowHandle(),	// メインのウィンドウハンドル
-			player.path,			// メッセージ本文
-			"画像読み込みエラー",	// メッセージタイトル
-			MB_OK					// ボタン
-		);
-
-		return FALSE;		// 読み込み失敗
-	}
-
-	// 画像の幅と高さを取得
-	GetGraphSize(player.handle, &player.width, &player.height);
-
-	//// 当たり判定を更新する
-	//CollUpdatePlayer(&player);	// プレイヤーの当たり判定のアドレス
-
-	// ゴールの画像を読み込み
-	strcpyDx(goal.path, ".\\images\\goal.png");	// パスのコピー
-	goal.handle = LoadGraph(goal.path);			// 画像の読み込み
-
-	// 画像が読み込めなかったときは、エラー（－1）が入る
-	if (goal.handle == -1)
-	{
-		MessageBox(
-			GetMainWindowHandle(),	// メインのウィンドウハンドル
-			goal.path,				// メッセージ本文
-			"画像読み込みエラー",	// メッセージタイトル
-			MB_OK					// ボタン
-		);
-
-		return FALSE;		// 読み込み失敗
-	}
-
-	// 画像の幅と高さを取得
-	GetGraphSize(goal.handle, &goal.width, &goal.height);
+	// ロゴを読み込む
+	if (!LoadImageMem(&TitleLogo, ".\\images\\title_logo.\png")) { return FALSE; }
+	if (!LoadImageMem(&TitleEnter,".\\images\\titleEnter_logo.\png")) { return FALSE; }
+	if (!LoadImageMem(&EndClear, ".\\images\\endClear_logo.\png")) { return FALSE; }
 
 	// 音楽を読み込む
 	if (!LoadAudio(&TitleBGM, ".\\Audio\\title_bgm.mp3", 255, DX_PLAYTYPE_LOOP)) { return FALSE; }
@@ -311,6 +303,38 @@ BOOL GameLoad(VOID) {
 	if (!LoadAudio(&PlayerSE, ".\\Audio\\player_se.mp3", 255, DX_PLAYTYPE_BACK)) { return FALSE; }
 
 	return TRUE;	//すべて読み込めた
+}
+
+/// <summary>
+/// 画像をメモリに読み込み
+/// </summary>
+/// <param name="image">画像構造体のアドレス</param>
+/// <param name="path">画像のパス</param>
+/// <returns></returns>
+BOOL LoadImageMem(IMAGE* image, const char* path)
+{
+	// 画像の読み込み
+	strcpyDx(image->path, path);			// パスのコピー
+	image->handle = LoadGraph(image->path);	// 画像の読み込み
+
+	// 画像が読み込めなかったときは、エラー（－1）が入る
+	if (image->handle == -1)
+	{
+		MessageBox(
+			GetMainWindowHandle(),	// メインのウィンドウハンドル
+			image->path,			// メッセージ本文
+			"画像読み込みエラー",	// メッセージタイトル
+			MB_OK					// ボタン
+		);
+
+		return FALSE;		// 読み込み失敗
+	}
+
+	// 画像の幅と高さを取得
+	GetGraphSize(image->handle, &image->width, &image->height);
+
+	// 読み込めた
+	return TRUE;
 }
 
 /// <summary>
@@ -343,6 +367,9 @@ BOOL LoadAudio(AUDIO* audio, const char* path, int volume, int playType)
 	// その他の設定
 	audio->volume = volume;
 	audio->playType = playType;
+
+	// 読み込めた
+	return TRUE;
 }
 
 /// <summary>
@@ -352,22 +379,41 @@ BOOL LoadAudio(AUDIO* audio, const char* path, int volume, int playType)
 VOID GameInit(VOID)
 {
 	// プレイヤーを初期化
-	player.x = GAME_WIDTH / 2 - player.width / 2;	// 中央寄せ
-	player.y = GAME_HEIGHT / 2 - player.height / 2;	// 中央寄せ
+	player.img.x = GAME_WIDTH / 2 - player.img.width / 2;	// 中央寄せ
+	player.img.y = GAME_HEIGHT / 2 - player.img.height / 2;	// 中央寄せ
 	player.speed = 500;
-	player.IsDraw = TRUE;	// 描画できる
+	player.img.IsDraw = TRUE;	// 描画できる
 
 	// 当たり判定を更新する
 	CollUpdatePlayer(&player);	// プレイヤーの当たり判定のアドレス
 
 	// ゴールを初期化
-	goal.x = GAME_WIDTH / 2 - goal.width / 2; //GAME_WIDTH - goal.width;
-	goal.y = 0;
+	goal.img.x = GAME_WIDTH / 2 - goal.img.width / 2; //GAME_WIDTH - goal.img.width;
+	goal.img.y = 0;
 	goal.speed = 500;	// スピード
-	goal.IsDraw = TRUE;	// 描画できる
+	goal.img.IsDraw = TRUE;	// 描画できる
 
 	// 当たり判定を更新する
 	CollUpdate(&goal);	// ゴールの当たり判定のアドレス
+
+	// タイトルロゴの位置を決める
+	TitleLogo.x = GAME_WIDTH / 2 - TitleLogo.width / 2;	// 中央揃え
+	TitleLogo.y = 100;
+
+	// PushEnterの位置を決める
+	TitleEnter.x = GAME_WIDTH / 2 - TitleEnter.width / 2;
+	TitleEnter.y = GAME_HEIGHT - TitleEnter.height - 100;
+
+	// PushEnterの点滅
+	PushEnterCnt = 0;
+	PushEnterBrink = FALSE;
+
+	// EndClear
+	EndClearCnt = 0;
+	
+	// クリアロゴの位置を決める
+	EndClear.x = GAME_WIDTH / 2 - EndClear.width / 2;
+	EndClear.y = GAME_HEIGHT / 2 - EndClear.height / 2;
 }
 
 /// <summary>
@@ -431,6 +477,41 @@ VOID TitleProc(VOID)
 /// </summary>
 VOID TitleDraw(VOID)
 {
+	// タイトルロゴの描画	
+	DrawGraph(TitleLogo.x,TitleLogo.y , TitleLogo.handle, TRUE);
+
+	// MAX値まで待つ
+	if (PushEnterCnt < PushEnterCntMax) { PushEnterCnt++; }
+	else
+	{
+		if (PushEnterBrink == TRUE)PushEnterBrink = FALSE;
+		else if (PushEnterBrink == FALSE)PushEnterBrink = TRUE;
+
+		PushEnterCnt = 0;	// カウンタを初期化
+	}
+
+	if (PushEnterBrink == TRUE) {
+
+		// 半透明にする
+		SetDrawBlendMode(DX_BLENDMODE_ALPHA, ((float)PushEnterCnt / PushEnterCntMax) * 255);
+
+		// PushEnterの描画
+		DrawGraph(TitleEnter.x, TitleEnter.y, TitleEnter.handle, TRUE);
+
+		SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
+	}
+
+	if (PushEnterBrink == FALSE) {
+
+		// 半透明にする
+		SetDrawBlendMode(DX_BLENDMODE_ALPHA, ((float)(PushEnterCntMax - PushEnterCnt) / PushEnterCntMax) * 255);
+
+		// PushEnterの描画
+		DrawGraph(TitleEnter.x, TitleEnter.y, TitleEnter.handle, TRUE);
+
+		SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
+	}
+
 	DrawString(0, 0, "タイトル画面", GetColor(0, 0, 0));
 
 	return;
@@ -476,7 +557,7 @@ VOID PlayProc(VOID)
 	// プレイヤーの操作
 	if (KeyDown(KEY_INPUT_W) == TRUE)
 	{
-		player.y -= player.speed * fps.DeltaTime;
+		player.img.y -= player.speed * fps.DeltaTime;
 
 		// 動くときの効果音を追加
 		if (CheckSoundMem(PlayerSE.handle) == 0)
@@ -486,7 +567,7 @@ VOID PlayProc(VOID)
 	} 
 	if (KeyDown(KEY_INPUT_S) == TRUE)
 	{
-		player.y += player.speed * fps.DeltaTime;
+		player.img.y += player.speed * fps.DeltaTime;
 
 		// 動くときの効果音を追加
 		if (CheckSoundMem(PlayerSE.handle) == 0)
@@ -496,7 +577,7 @@ VOID PlayProc(VOID)
 	}
 	if (KeyDown(KEY_INPUT_A) == TRUE)
 	{
-		player.x -= player.speed * fps.DeltaTime;
+		player.img.x -= player.speed * fps.DeltaTime;
 
 		// 動くときの効果音を追加
 		if (CheckSoundMem(PlayerSE.handle) == 0)
@@ -506,7 +587,7 @@ VOID PlayProc(VOID)
 	}
 	if (KeyDown(KEY_INPUT_D) == TRUE)
 	{
-		player.x += player.speed * fps.DeltaTime;
+		player.img.x += player.speed * fps.DeltaTime;
 
 		// 動くときの効果音を追加
 		if (CheckSoundMem(PlayerSE.handle) == 0)
@@ -556,10 +637,10 @@ VOID PlayDraw(VOID)
 	DrawExtendGraph(0, 0, GAME_WIDTH, GAME_HEIGHT, playMovie.handle, TRUE);
 
 	// ゴールを描画
-	if (goal.IsDraw == TRUE)
+	if (goal.img.IsDraw == TRUE)
 	{
 		// 画像を描画
-		DrawGraph(goal.x, goal.y, goal.handle, TRUE);
+		DrawGraph(goal.img.x, goal.img.y, goal.img.handle, TRUE);
 
 		// デバックの時は、当たり判定の領域を描画
 		if (GAME_DEBUG == TRUE)
@@ -571,10 +652,10 @@ VOID PlayDraw(VOID)
 	}
 
 	// プレイヤーを描画
-	if (player.IsDraw == TRUE)
+	if (player.img.IsDraw == TRUE)
 	{
 		// 画像を描画
-		DrawGraph(player.x, player.y, player.handle, TRUE);
+		DrawGraph(player.img.x, player.img.y, player.img.handle, TRUE);
 
 		// デバックのときは、当たり判定の領域を描画
 		if (GAME_DEBUG == TRUE)
@@ -634,6 +715,18 @@ VOID EndProc(VOID)
 /// </summary>
 VOID EndDraw(VOID)
 {
+	// MAX値まで待つ
+	if (EndClearCnt < EndClearCntMax) { EndClearCnt++; }
+
+
+	SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
+
+	// EndClearの描画
+	DrawGraph(EndClear.x, EndClear.y, EndClear.handle, TRUE);
+
+	// 半透明にする
+	SetDrawBlendMode(DX_BLENDMODE_ALPHA, ((float)(EndClearCntMax - EndClearCnt) / EndClearCntMax) * 255);
+
 	DrawString(0, 0, "エンド画面", GetColor(0, 0, 0));
 	return;
 }
@@ -745,10 +838,10 @@ VOID ChangeDraw(VOID)
 /// <param name="chara">当たり判定の領域</param>
 VOID CollUpdatePlayer(CHARACTOR* chara)
 {
-	chara->coll.left = chara->x;
-	chara->coll.top = chara->y;
-	chara->coll.right = chara->x + chara->width;
-	chara->coll.bottom = chara->y + chara->height;
+	chara->coll.left = chara->img.x;
+	chara->coll.top = chara->img.y;
+	chara->coll.right = chara->img.x + chara->img.width;
+	chara->coll.bottom = chara->img.y + chara->img.height;
 
 	return;
 }
@@ -759,10 +852,10 @@ VOID CollUpdatePlayer(CHARACTOR* chara)
 /// <param name="chara">当たり判定の領域</param>
 VOID CollUpdate(CHARACTOR* chara)
 {
-	chara->coll.left = chara->x;
-	chara->coll.top = chara->y;
-	chara->coll.right = chara->x + chara->width;
-	chara->coll.bottom = chara->y + chara->height;
+	chara->coll.left = chara->img.x;
+	chara->coll.top = chara->img.y;
+	chara->coll.right = chara->img.x + chara->img.width;
+	chara->coll.bottom = chara->img.y + chara->img.height;
 
 	return;
 }
