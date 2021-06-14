@@ -477,11 +477,14 @@ VOID TitleProc(VOID)
 /// </summary>
 VOID TitleDraw(VOID)
 {
+	// タイトル背景の描画
+	DrawBox(0,0,GAME_WIDTH,GAME_HEIGHT,GetColor(255,255,100),TRUE);
+
 	// タイトルロゴの描画	
 	DrawGraph(TitleLogo.x,TitleLogo.y , TitleLogo.handle, TRUE);
 
 	// MAX値まで待つ
-	if (PushEnterCnt < PushEnterCntMax) { PushEnterCnt++; }
+	if (PushEnterCnt < EndClearCntMax) { PushEnterCnt++; }
 	else
 	{
 		if (PushEnterBrink == TRUE)PushEnterBrink = FALSE;
@@ -493,7 +496,7 @@ VOID TitleDraw(VOID)
 	if (PushEnterBrink == TRUE) {
 
 		// 半透明にする
-		SetDrawBlendMode(DX_BLENDMODE_ALPHA, ((float)PushEnterCnt / PushEnterCntMax) * 255);
+		SetDrawBlendMode(DX_BLENDMODE_ALPHA, ((float)PushEnterCnt / EndClearCntMax) * 255);
 
 		// PushEnterの描画
 		DrawGraph(TitleEnter.x, TitleEnter.y, TitleEnter.handle, TRUE);
@@ -504,7 +507,7 @@ VOID TitleDraw(VOID)
 	if (PushEnterBrink == FALSE) {
 
 		// 半透明にする
-		SetDrawBlendMode(DX_BLENDMODE_ALPHA, ((float)(PushEnterCntMax - PushEnterCnt) / PushEnterCntMax) * 255);
+		SetDrawBlendMode(DX_BLENDMODE_ALPHA, ((float)(EndClearCntMax - PushEnterCnt) / EndClearCntMax) * 255);
 
 		// PushEnterの描画
 		DrawGraph(TitleEnter.x, TitleEnter.y, TitleEnter.handle, TRUE);
@@ -715,17 +718,40 @@ VOID EndProc(VOID)
 /// </summary>
 VOID EndDraw(VOID)
 {
+	// エンド背景の描画
+	DrawBox(0, 0, GAME_WIDTH, GAME_HEIGHT, GetColor(0, 200, 200), TRUE);
+
 	// MAX値まで待つ
 	if (EndClearCnt < EndClearCntMax) { EndClearCnt++; }
+	else
+	{
+		if (EndClearBrink == TRUE)EndClearBrink = FALSE;
+		else if (EndClearBrink == FALSE)EndClearBrink = TRUE;
 
+		EndClearCnt = 0;	// カウンタを初期化
+	}
 
-	SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
+	if (EndClearBrink == TRUE) {
 
-	// EndClearの描画
-	DrawGraph(EndClear.x, EndClear.y, EndClear.handle, TRUE);
+		// 半透明にする
+		SetDrawBlendMode(DX_BLENDMODE_ALPHA, ((float)EndClearCnt / EndClearCntMax) * 255);
 
-	// 半透明にする
-	SetDrawBlendMode(DX_BLENDMODE_ALPHA, ((float)(EndClearCntMax - EndClearCnt) / EndClearCntMax) * 255);
+		// PushEnterの描画
+		DrawGraph(EndClear.x, EndClear.y, EndClear.handle, TRUE);
+
+		SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
+	}
+
+	if (EndClearBrink == FALSE) {
+
+		// 半透明にする
+		SetDrawBlendMode(DX_BLENDMODE_ALPHA, ((float)(EndClearCntMax - EndClearCnt) / EndClearCntMax) * 255);
+
+		// PushEnterの描画
+		DrawGraph(EndClear.x, EndClear.y, EndClear.handle, TRUE);
+
+		SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
+	}
 
 	DrawString(0, 0, "エンド画面", GetColor(0, 0, 0));
 	return;
