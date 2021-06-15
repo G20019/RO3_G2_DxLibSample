@@ -66,6 +66,9 @@ CHARACTOR player;
 // ゴール
 CHARACTOR goal;
 
+// フィールド
+CHARACTOR field;
+
 // 画像を読み込む
 IMAGE TitleLogo;	// タイトルロゴ
 IMAGE TitleEnter;	// エンターキーを押してね
@@ -101,11 +104,6 @@ int PushEnterCnt;					// カウンタ
 const int PushEnterCntMax = 120;	// カウンタMAX値
 BOOL PushEnterBrink = FALSE;		// 点滅しているか？
 
-// EndClear
-int EndClearCnt;					//カウンタ
-const int EndClearCntMax = 120;		// カウンタMAX値
-BOOL EndClearBrink = FALSE;			// 点滅しているか？
-
 // プロトタイプ宣言
 VOID Title(VOID);		// タイトル画面
 VOID TitleProc(VOID);	// タイトル画面（処理）
@@ -127,6 +125,7 @@ VOID ChangeScene(GAME_SCENE scene);											// シーン切り替え
 
 VOID CollUpdatePlayer(CHARACTOR* chara);									// プレイヤーの当たり判定の領域更新
 VOID CollUpdate(CHARACTOR* chara);											// 当たり判定の領域更新
+VOID CollUpdateField(CHARACTOR* chara);										// フィールドの当たり判定の領域更新
 
 BOOL OnCollRect(RECT object1, RECT object2);								// 矩形と矩形の当たり判定
 
@@ -388,13 +387,20 @@ VOID GameInit(VOID)
 	CollUpdatePlayer(&player);	// プレイヤーの当たり判定のアドレス
 
 	// ゴールを初期化
-	goal.img.x = GAME_WIDTH / 2 - goal.img.width / 2; //GAME_WIDTH - goal.img.width;
-	goal.img.y = 0;
-	goal.speed = 500;	// スピード
+	goal.img.x = GAME_WIDTH/2 - goal.img.width; //GAME_WIDTH - goal.img.width;
+	goal.img.y = 1;
+	goal.speed = 10;	// スピード
 	goal.img.IsDraw = TRUE;	// 描画できる
 
 	// 当たり判定を更新する
 	CollUpdate(&goal);	// ゴールの当たり判定のアドレス
+
+	// フィールド初期化
+	field.img.x = 1;
+	field.img.y = 1;
+
+	// 当たり判定を更新する
+	CollUpdateField(&field);
 
 	// タイトルロゴの位置を決める
 	TitleLogo.x = GAME_WIDTH / 2 - TitleLogo.width / 2;	// 中央揃え
@@ -407,9 +413,6 @@ VOID GameInit(VOID)
 	// PushEnterの点滅
 	PushEnterCnt = 0;
 	PushEnterBrink = FALSE;
-
-	// EndClear
-	EndClearCnt = 0;
 	
 	// クリアロゴの位置を決める
 	EndClear.x = GAME_WIDTH / 2 - EndClear.width / 2;
@@ -484,7 +487,7 @@ VOID TitleDraw(VOID)
 	DrawGraph(TitleLogo.x,TitleLogo.y , TitleLogo.handle, TRUE);
 
 	// MAX値まで待つ
-	if (PushEnterCnt < EndClearCntMax) { PushEnterCnt++; }
+	if (PushEnterCnt < PushEnterCntMax) { PushEnterCnt++; }
 	else
 	{
 		if (PushEnterBrink == TRUE)PushEnterBrink = FALSE;
@@ -496,7 +499,7 @@ VOID TitleDraw(VOID)
 	if (PushEnterBrink == TRUE) {
 
 		// 半透明にする
-		SetDrawBlendMode(DX_BLENDMODE_ALPHA, ((float)PushEnterCnt / EndClearCntMax) * 255);
+		SetDrawBlendMode(DX_BLENDMODE_ALPHA, ((float)PushEnterCnt / PushEnterCntMax) * 255);
 
 		// PushEnterの描画
 		DrawGraph(TitleEnter.x, TitleEnter.y, TitleEnter.handle, TRUE);
@@ -507,7 +510,7 @@ VOID TitleDraw(VOID)
 	if (PushEnterBrink == FALSE) {
 
 		// 半透明にする
-		SetDrawBlendMode(DX_BLENDMODE_ALPHA, ((float)(EndClearCntMax - PushEnterCnt) / EndClearCntMax) * 255);
+		SetDrawBlendMode(DX_BLENDMODE_ALPHA, ((float)(PushEnterCntMax - PushEnterCnt) / PushEnterCntMax) * 255);
 
 		// PushEnterの描画
 		DrawGraph(TitleEnter.x, TitleEnter.y, TitleEnter.handle, TRUE);
@@ -555,6 +558,39 @@ VOID PlayProc(VOID)
 	{
 		// BGMを流す
 		PlaySoundMem(PlayBGM.handle, PlayBGM.playType);
+	}
+
+	// ゴールの動き
+	int x_speed = 10;
+	int y_speed = 10;
+	// 横方向
+	goal.img.x += x_speed;
+	if (goal.img.x >= GAME_WIDTH - goal.img.width || goal.img.x <= 0)
+	{
+		x_speed *= -1;
+	}
+	if (goal.img.x < 0)
+	{
+		goal.img.x = 0;
+	}
+	if (goal.img.x > GAME_WIDTH - goal.img.width)
+	{
+		goal.img.x = GAME_WIDTH - goal.img.width;
+	}
+
+	// 縦方向
+	goal.img.y += y_speed;
+	if (goal.img.y >= GAME_HEIGHT - goal.img.height || goal.img.y <= 0)
+	{
+		y_speed *= -1;
+	}
+	if (goal.img.y < 0)
+	{
+		goal.img.y = 0;
+	}
+	if (goal.img.y > GAME_HEIGHT - goal.img.height)
+	{
+		goal.img.y = GAME_HEIGHT - goal.img.height;
 	}
 
 	// プレイヤーの操作
@@ -618,6 +654,15 @@ VOID PlayProc(VOID)
 		return;
 	}
 
+	//// ゴールがフィールドに当たった時
+	//if (OnCollRect(goal.coll, field.coll) == TRUE)
+	//{
+	//	goal.img.x = -goal.speed;
+	//	goal.img.y = -goal.speed;
+
+	//	return;
+	//}
+
 	return;
 }
 
@@ -627,7 +672,6 @@ VOID PlayProc(VOID)
 VOID PlayDraw(VOID)
 {
 	// 背景動画を描画
-
 	// 動画が再生されていないとき
 	if (GetMovieStateToGraph(playMovie.handle) == 0)
 	{
@@ -668,6 +712,14 @@ VOID PlayDraw(VOID)
 				GetColor(255, 0, 0), FALSE);
 		}
 	}
+
+	if (GAME_DEBUG == TRUE)
+	{
+		DrawBox(field.coll.left, field.coll.top, field.coll.right, field.coll.bottom,
+			GetColor(255, 0, 0), FALSE);
+	}
+
+	
 
 	DrawString(0, 0, "プレイ画面", GetColor(0, 0, 0));
 	return;
@@ -721,37 +773,8 @@ VOID EndDraw(VOID)
 	// エンド背景の描画
 	DrawBox(0, 0, GAME_WIDTH, GAME_HEIGHT, GetColor(0, 200, 200), TRUE);
 
-	// MAX値まで待つ
-	if (EndClearCnt < EndClearCntMax) { EndClearCnt++; }
-	else
-	{
-		if (EndClearBrink == TRUE)EndClearBrink = FALSE;
-		else if (EndClearBrink == FALSE)EndClearBrink = TRUE;
-
-		EndClearCnt = 0;	// カウンタを初期化
-	}
-
-	if (EndClearBrink == TRUE) {
-
-		// 半透明にする
-		SetDrawBlendMode(DX_BLENDMODE_ALPHA, ((float)EndClearCnt / EndClearCntMax) * 255);
-
-		// PushEnterの描画
-		DrawGraph(EndClear.x, EndClear.y, EndClear.handle, TRUE);
-
-		SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
-	}
-
-	if (EndClearBrink == FALSE) {
-
-		// 半透明にする
-		SetDrawBlendMode(DX_BLENDMODE_ALPHA, ((float)(EndClearCntMax - EndClearCnt) / EndClearCntMax) * 255);
-
-		// PushEnterの描画
-		DrawGraph(EndClear.x, EndClear.y, EndClear.handle, TRUE);
-
-		SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
-	}
+	// EndClearの描画
+	DrawGraph(EndClear.x, EndClear.y, EndClear.handle, TRUE);
 
 	DrawString(0, 0, "エンド画面", GetColor(0, 0, 0));
 	return;
@@ -882,6 +905,16 @@ VOID CollUpdate(CHARACTOR* chara)
 	chara->coll.top = chara->img.y;
 	chara->coll.right = chara->img.x + chara->img.width;
 	chara->coll.bottom = chara->img.y + chara->img.height;
+
+	return;
+}
+
+VOID CollUpdateField(CHARACTOR* chara)
+{
+	chara->coll.left = chara->img.x;
+	chara->coll.top = chara->img.y;
+	chara->coll.right = chara->img.x + GAME_WIDTH - 2;
+	chara->coll.bottom = chara->img.y + GAME_HEIGHT - 2;
 
 	return;
 }
