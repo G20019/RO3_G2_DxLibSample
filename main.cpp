@@ -23,7 +23,7 @@ struct IMAGE
 struct CHARACTOR
 {
 	IMAGE img;			// 画像構造体
-	int speed = 5;		// 移動速度
+	int speed = 10;		// 移動速度
 	RECT coll;			// 当たり判定の領域（四角）
 };
 
@@ -378,8 +378,8 @@ BOOL LoadAudio(AUDIO* audio, const char* path, int volume, int playType)
 VOID GameInit(VOID)
 {
 	// プレイヤーを初期化
-	player.img.x = GAME_WIDTH / 2 - player.img.width / 2;	// 中央寄せ
-	player.img.y = GAME_HEIGHT / 2 - player.img.height / 2;	// 中央寄せ
+	player.img.x = player.img.width;
+	player.img.y = GAME_HEIGHT - player.img.height;
 	player.speed = 500;
 	player.img.IsDraw = TRUE;	// 描画できる
 
@@ -561,36 +561,17 @@ VOID PlayProc(VOID)
 	}
 
 	// ゴールの動き
-	int x_speed = 10;
-	int y_speed = 10;
-	// 横方向
-	goal.img.x += x_speed;
-	if (goal.img.x >= GAME_WIDTH - goal.img.width || goal.img.x <= 0)
-	{
-		x_speed *= -1;
+
+	goal.img.x += goal.speed;
+
+	if (goal.img.x >= GAME_WIDTH - goal.img.width || goal.img.x <= 0) {
+		goal.speed = -goal.speed;
 	}
-	if (goal.img.x < 0)
-	{
+	if (goal.img.x < 0) {
 		goal.img.x = 0;
 	}
-	if (goal.img.x > GAME_WIDTH - goal.img.width)
-	{
+	if (goal.img.x > GAME_WIDTH - goal.img.width) {
 		goal.img.x = GAME_WIDTH - goal.img.width;
-	}
-
-	// 縦方向
-	goal.img.y += y_speed;
-	if (goal.img.y >= GAME_HEIGHT - goal.img.height || goal.img.y <= 0)
-	{
-		y_speed *= -1;
-	}
-	if (goal.img.y < 0)
-	{
-		goal.img.y = 0;
-	}
-	if (goal.img.y > GAME_HEIGHT - goal.img.height)
-	{
-		goal.img.y = GAME_HEIGHT - goal.img.height;
 	}
 
 	// プレイヤーの操作
@@ -653,15 +634,6 @@ VOID PlayProc(VOID)
 		// 処理を強制終了
 		return;
 	}
-
-	//// ゴールがフィールドに当たった時
-	//if (OnCollRect(goal.coll, field.coll) == TRUE)
-	//{
-	//	goal.img.x = -goal.speed;
-	//	goal.img.y = -goal.speed;
-
-	//	return;
-	//}
 
 	return;
 }
